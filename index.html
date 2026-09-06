@@ -2,7 +2,7 @@
 <html>
 <head>
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Gesture OS V6</title>
+<title>Gesture OS V7</title>
 
 <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
@@ -12,7 +12,7 @@
 
 body{
   margin:0;
-  background:#050505;
+  background:#030507;
   color:white;
   font-family:Arial,sans-serif;
   text-align:center;
@@ -22,82 +22,133 @@ body{
 h1{
   margin:10px 0 2px;
   font-size:26px;
+  letter-spacing:2px;
 }
 
 #status{
-  font-size:13px;
+  font-size:12px;
   opacity:.6;
 }
 
 #gesture{
-  font-size:25px;
-  margin:8px;
+  font-size:24px;
+  margin:7px;
 }
 
 #action{
-  font-size:18px;
-  min-height:28px;
+  min-height:26px;
+  font-size:17px;
 }
 
-#settings{
+#controls{
   width:92%;
   max-width:500px;
-  margin:10px auto;
-  padding:12px;
+  margin:8px auto;
+  padding:10px;
   border:1px solid #444;
   border-radius:15px;
+  background:#0a0d12;
 }
 
 #sensitivity{
-  width:75%;
+  width:70%;
+}
+
+#stage{
+  position:relative;
+  width:94%;
+  max-width:650px;
+  height:48vh;
+  min-height:300px;
+  margin:10px auto;
+  border:1px solid #444;
+  border-radius:24px;
+  overflow:hidden;
+  background:#080b10;
 }
 
 video{
-  width:94%;
-  max-width:600px;
-  border-radius:20px;
+  width:100%;
+  height:100%;
+  object-fit:cover;
   transform:scaleX(-1);
-  border:1px solid #333;
+  opacity:.72;
 }
 
-#apps{
+#cursor{
+  position:absolute;
+  width:28px;
+  height:28px;
+  border:3px solid white;
+  border-radius:50%;
+  transform:translate(-50%,-50%);
+  pointer-events:none;
+  display:none;
+  box-shadow:0 0 15px white;
+}
+
+#cursorDot{
+  position:absolute;
+  width:7px;
+  height:7px;
+  background:white;
+  border-radius:50%;
+  left:50%;
+  top:50%;
+  transform:translate(-50%,-50%);
+}
+
+#panel{
+  position:absolute;
+  left:50%;
+  top:50%;
+  transform:translate(-50%,-50%);
+  width:80%;
+  padding:15px;
+  border:1px solid #555;
+  border-radius:20px;
+  background:rgba(5,8,12,.88);
+  backdrop-filter:blur(8px);
+}
+
+#panelTitle{
+  font-size:20px;
+  margin-bottom:12px;
+}
+
+#miniApps{
   display:grid;
   grid-template-columns:repeat(3,1fr);
-  gap:10px;
-  width:94%;
-  margin:15px auto;
+  gap:9px;
 }
 
-.app{
-  height:75px;
-  border:2px solid #777;
-  border-radius:18px;
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  font-size:14px;
-  transition:.12s;
+.mini{
+  padding:15px 5px;
+  border:1px solid #666;
+  border-radius:14px;
+  font-size:13px;
+  transition:.1s;
 }
 
-.selected{
-  border:3px solid white;
-  transform:scale(1.06);
+.hover{
+  border:2px solid white;
+  transform:scale(1.08);
 }
 
 #info{
-  font-size:13px;
+  font-size:12px;
   opacity:.55;
-  margin:12px;
+  margin:10px;
 }
 </style>
 </head>
 
 <body>
 
-<h1>GESTURE OS V6</h1>
+<h1>GESTURE OS V7</h1>
 
 <div id="status">
-AI SPATIAL INTERFACE • FAST SELECT
+AI SPATIAL INTERFACE • VIRTUAL CURSOR
 </div>
 
 <div id="gesture">
@@ -108,7 +159,8 @@ Show your hand ✋
 Starting...
 </div>
 
-<div id="settings">
+<div id="controls">
+
 Sensitivity:
 <input
   id="sensitivity"
@@ -116,58 +168,96 @@ Sensitivity:
   min="1"
   max="100"
   value="40">
+
 <span id="sensValue">40</span>%
+
 </div>
 
-<video id="camera" autoplay playsinline></video>
+<div id="stage">
 
-<div id="apps">
-  <div class="app">YouTube</div>
-  <div class="app">Camera</div>
-  <div class="app">Music</div>
-  <div class="app">Browser</div>
-  <div class="app">Messages</div>
-  <div class="app">Settings</div>
+  <video
+    id="camera"
+    autoplay
+    playsinline>
+  </video>
+
+  <div id="cursor">
+    <div id="cursorDot"></div>
+  </div>
+
+  <div id="panel">
+
+    <div id="panelTitle">
+      GESTURE OS
+    </div>
+
+    <div id="miniApps">
+
+      <div class="mini">YouTube</div>
+      <div class="mini">Camera</div>
+      <div class="mini">Music</div>
+
+      <div class="mini">Browser</div>
+      <div class="mini">Messages</div>
+      <div class="mini">Settings</div>
+
+    </div>
+
+  </div>
+
 </div>
 
 <div id="info">
-☝️ Select • 🤏 Activate • ✋ Home • ✊ Back • ✌️ Workspace
+☝️ Move • 🤏 Select • ✋ Home • ✊ Back • ✌️ Workspace
 </div>
 
 <script>
 
 const video=document.getElementById("camera");
+const stage=document.getElementById("stage");
+const cursor=document.getElementById("cursor");
+
 const gestureText=document.getElementById("gesture");
 const actionText=document.getElementById("action");
+
 const sensitivity=document.getElementById("sensitivity");
 const sensValue=document.getElementById("sensValue");
 
-const apps=[...document.querySelectorAll(".app")];
-
-let selected=0;
+const miniApps=[
+  ...document.querySelectorAll(".mini")
+];
 
 let currentGesture="";
-let gestureStart=0;
+let pinchLocked=false;
+
+let smoothX=.5;
+let smoothY=.5;
+
+let selected=0;
 let lastAction=0;
 
-/* PINCH LOCK */
-let pinchLocked=false;
+let cursorVisible=false;
 
 
 /* Sensitivity */
 
 sensitivity.oninput=()=>{
-  sensValue.innerText=sensitivity.value;
+
+  sensValue.innerText=
+    sensitivity.value;
+
 };
 
 
 /* Distance */
 
 function distance(a,b){
+
   return Math.hypot(
     a.x-b.x,
     a.y-b.y
   );
+
 }
 
 
@@ -175,85 +265,202 @@ function distance(a,b){
 
 function recognize(h){
 
-  const s=Number(sensitivity.value);
-
-  /*
-    Pinch threshold.
-    Lower sensitivity = smaller threshold.
-    Higher sensitivity = larger threshold.
-  */
+  const s=
+    Number(sensitivity.value);
 
   const pinchLimit=
-    0.035+(s/100)*0.035;
+    .035+(s/100)*.035;
 
   const pinch=
-    distance(h[4],h[8])<pinchLimit;
-
+    distance(h[4],h[8])
+    <pinchLimit;
 
   /*
-    PINCH HAS ABSOLUTE PRIORITY.
+    PINCH FIRST.
   */
 
-  if(pinch){
-    return "PINCH";
-  }
+  if(pinch)
+    return"PINCH";
 
 
-  const index=h[8].y<h[6].y;
-  const middle=h[12].y<h[10].y;
-  const ring=h[16].y<h[14].y;
-  const pinky=h[20].y<h[18].y;
+  const index=
+    h[8].y<h[6].y;
+
+  const middle=
+    h[12].y<h[10].y;
+
+  const ring=
+    h[16].y<h[14].y;
+
+  const pinky=
+    h[20].y<h[18].y;
 
 
-  if(index&&middle&&ring&&pinky)
-    return "PALM";
+  if(
+    index&&
+    middle&&
+    ring&&
+    pinky
+  )
+    return"PALM";
 
 
-  if(!index&&!middle&&!ring&&!pinky)
-    return "FIST";
+  if(
+    !index&&
+    !middle&&
+    !ring&&
+    !pinky
+  )
+    return"FIST";
 
 
-  if(index&&middle&&!ring&&!pinky)
-    return "TWO";
+  if(
+    index&&
+    middle&&
+    !ring&&
+    !pinky
+  )
+    return"TWO";
 
 
-  if(index&&!middle&&!ring&&!pinky)
-    return "POINT";
+  if(
+    index&&
+    !middle&&
+    !ring&&
+    !pinky
+  )
+    return"POINT";
 
 
-  return "HAND";
+  return"HAND";
 }
 
 
-/* Highlight app */
+/* Highlight mini app */
 
-function selectApp(){
+function highlightApp(index){
 
-  apps.forEach((app,i)=>{
+  miniApps.forEach(
+    (app,i)=>{
 
-    app.classList.toggle(
-      "selected",
-      i===selected
-    );
+      app.classList.toggle(
+        "hover",
+        i===index
+      );
 
-  });
+    }
+  );
 
 }
 
 
-/* Execute gesture */
+/* Virtual cursor */
 
-function executeGesture(gesture,hand){
+function moveCursor(hand){
 
-  const now=Date.now();
-  const s=Number(sensitivity.value);
+  /*
+    Mirror the X position because
+    the camera is mirrored.
+  */
+
+  const targetX=
+    1-hand[8].x;
+
+  const targetY=
+    hand[8].y;
 
 
   /*
-    PINCH LOCK SYSTEM
+    Higher sensitivity =
+    faster cursor.
+  */
 
-    When pinch starts, it remains
-    PINCH until the fingers separate.
+  const s=
+    Number(sensitivity.value);
+
+  const smoothing=
+    .18+(s/100)*.22;
+
+
+  smoothX+=
+    (targetX-smoothX)*
+    smoothing;
+
+  smoothY+=
+    (targetY-smoothY)*
+    smoothing;
+
+
+  cursor.style.display="block";
+
+  cursor.style.left=
+    (smoothX*100)+"%";
+
+  cursor.style.top=
+    (smoothY*100)+"%";
+
+  cursorVisible=true;
+
+
+  /*
+    Convert cursor position
+    into the 3x2 launcher grid.
+  */
+
+  const column=
+    Math.min(
+      2,
+      Math.max(
+        0,
+        Math.floor(smoothX*3)
+      )
+    );
+
+
+  const row=
+    Math.min(
+      1,
+      Math.max(
+        0,
+        Math.floor(smoothY*2)
+      )
+    );
+
+
+  const index=
+    row*3+column;
+
+
+  if(index!==selected){
+
+    selected=index;
+
+    highlightApp(selected);
+
+    actionText.innerText=
+      "☝️ "+
+      miniApps[selected].innerText;
+  }
+
+}
+
+
+/* Gesture actions */
+
+function executeGesture(
+  gesture,
+  hand
+){
+
+  const now=
+    Date.now();
+
+  const s=
+    Number(sensitivity.value);
+
+
+  /*
+    PINCH LOCK
   */
 
   if(gesture==="PINCH"){
@@ -263,8 +470,8 @@ function executeGesture(gesture,hand){
       pinchLocked=true;
 
       actionText.innerText=
-        "🤏 OPEN → "+
-        apps[selected].innerText;
+        "🤏 SELECT → "+
+        miniApps[selected].innerText;
 
       lastAction=now;
     }
@@ -276,119 +483,70 @@ function executeGesture(gesture,hand){
 
 
   /*
-    Don't allow another gesture
-    to replace an active pinch.
+    While pinch is held,
+    ignore other gestures.
   */
 
   if(pinchLocked){
 
-    currentGesture="PINCH";
+    /*
+      Release lock only after
+      fingers are no longer pinching.
+    */
+
+    const pinchDistance=
+      distance(
+        hand[4],
+        hand[8]
+      );
+
+    const releaseLimit=
+      .055+(s/100)*.035;
+
+    if(
+      pinchDistance>
+      releaseLimit
+    ){
+
+      pinchLocked=false;
+      currentGesture="";
+    }
 
     return;
   }
 
 
   /*
-    Faster POINT response.
+    POINT = CURSOR CONTROL
   */
 
   if(gesture==="POINT"){
 
-    /*
-      Small hold instead of long hold.
-      Higher sensitivity = faster.
-    */
-
-    const requiredHold=
-      70-(s*0.35);
-
-
-    if(gesture!==currentGesture){
-
-      currentGesture="POINT";
-      gestureStart=now;
-
-      return;
-    }
-
-
-    if(now-gestureStart<requiredHold)
-      return;
-
-
-    /*
-      Fast pointer calculation.
-    */
-
-    const x=1-hand[8].x;
-    const y=hand[8].y;
-
-
-    const column=Math.min(
-      2,
-      Math.max(
-        0,
-        Math.floor(x*3)
-      )
-    );
-
-
-    const row=Math.min(
-      1,
-      Math.max(
-        0,
-        Math.floor(y*2)
-      )
-    );
-
-
-    const newSelected=
-      row*3+column;
-
-
-    if(newSelected!==selected){
-
-      selected=newSelected;
-
-      selectApp();
-
-      actionText.innerText=
-        "☝️ Selected: "+
-        apps[selected].innerText;
-    }
-
+    moveCursor(hand);
 
     return;
   }
 
 
   /*
-    Other gestures remain stable.
+    Other gestures
   */
 
-  const requiredHold=
-    150-(s*0.5);
-
-
-  if(gesture!==currentGesture){
-
-    currentGesture=gesture;
-    gestureStart=now;
-
-    return;
-  }
-
-
-  if(now-gestureStart<requiredHold)
-    return;
-
-
   const cooldown=
-    700-(s*2);
+    650-(s*2);
 
 
   if(now-lastAction<cooldown)
     return;
+
+
+  if(gesture!==currentGesture){
+
+    currentGesture=
+      gesture;
+
+    return;
+  }
 
 
   lastAction=now;
@@ -398,6 +556,9 @@ function executeGesture(gesture,hand){
 
     actionText.innerText=
       "✋ HOME";
+
+    cursor.style.display="none";
+
   }
 
 
@@ -419,12 +580,13 @@ function executeGesture(gesture,hand){
 
 /* MediaPipe */
 
-const hands=new Hands({
+const hands=
+  new Hands({
 
-  locateFile:file=>
-    `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`
+    locateFile:file=>
+      `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`
 
-});
+  });
 
 
 hands.setOptions({
@@ -450,10 +612,7 @@ hands.onResults(results=>{
     gestureText.innerText=
       "Show your hand ✋";
 
-    /*
-      Release pinch lock when
-      hand disappears.
-    */
+    cursor.style.display="none";
 
     pinchLocked=false;
     currentGesture="";
@@ -506,7 +665,8 @@ async function start(){
   try{
 
     const stream=
-      await navigator.mediaDevices.getUserMedia({
+      await navigator.mediaDevices
+      .getUserMedia({
 
         video:true,
         audio:false
@@ -514,31 +674,35 @@ async function start(){
       });
 
 
-    video.srcObject=stream;
+    video.srcObject=
+      stream;
 
 
     const camera=
-      new Camera(video,{
+      new Camera(
+        video,
+        {
 
-        onFrame:async()=>{
+          onFrame:async()=>{
 
-          await hands.send({
-            image:video
-          });
+            await hands.send({
+              image:video
+            });
 
-        },
+          },
 
-        width:640,
-        height:480
+          width:640,
+          height:480
 
-      });
+        }
+      );
 
 
     camera.start();
 
 
     actionText.innerText=
-      "Gesture OS V6 ready 🚀";
+      "Gesture OS V7 ready 🚀";
 
 
   }catch(error){
@@ -552,7 +716,8 @@ async function start(){
 }
 
 
-selectApp();
+highlightApp(0);
+
 start();
 
 </script>
