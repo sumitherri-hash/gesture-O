@@ -1,115 +1,295 @@
 <!DOCTYPE html>
 <html>
 <head>
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Gesture OS</title>
 
 <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
 
 <style>
-body{margin:0;background:#000;color:#fff;text-align:center;font-family:Arial}
-h1{margin-bottom:5px}
-#gesture{font-size:28px;font-weight:bold;margin:15px}
-video{width:100%;max-width:600px;transform:scaleX(-1)}
+body{
+  margin:0;
+  background:#050505;
+  color:white;
+  text-align:center;
+  font-family:Arial,sans-serif;
+}
+
+h1{margin:12px 0 5px}
+
+#gesture{
+  font-size:25px;
+  font-weight:bold;
+  margin:10px;
+}
+
+#action{
+  font-size:18px;
+  margin:8px;
+  min-height:25px;
+}
+
+video{
+  width:100%;
+  max-width:600px;
+  transform:scaleX(-1);
+  border-radius:15px;
+}
+
+#apps{
+  display:flex;
+  flex-wrap:wrap;
+  justify-content:center;
+  gap:12px;
+  margin:15px;
+}
+
+.app{
+  width:85px;
+  height:85px;
+  border:2px solid white;
+  border-radius:18px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  font-size:14px;
+  transition:.2s;
+}
+
+.selected{
+  background:white;
+  color:black;
+  transform:scale(1.08);
+}
+
+#mode{
+  font-size:14px;
+  opacity:.7;
+}
 </style>
 </head>
 
 <body>
 
 <h1>GESTURE OS</h1>
+
+<div id="mode">AI Gesture Control: ACTIVE</div>
+
 <div id="gesture">Show your hand ✋</div>
+
+<div id="action">Waiting for gesture...</div>
+
+<div id="apps">
+  <div class="app">YouTube</div>
+  <div class="app">Camera</div>
+  <div class="app">Music</div>
+  <div class="app">Browser</div>
+  <div class="app">Messages</div>
+  <div class="app">Settings</div>
+</div>
+
 <video id="camera" autoplay playsinline></video>
 
 <script>
+
 const video=document.getElementById("camera");
-const gesture=document.getElementById("gesture");
+const gestureText=document.getElementById("gesture");
+const actionText=document.getElementById("action");
 
-const hands=new Hands({
-  locateFile:(file)=>
-    `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`
-});
+const apps=[...document.querySelectorAll(".app")];
 
-hands.setOptions({
-  maxNumHands:1,
-  modelComplexity:1,
-  minDetectionConfidence:0.6,
-  minTrackingConfidence:0.6
-});
+let selected=0;
+let lastAction="";
+let lastActionTime=0;
 
 function distance(a,b){
   return Math.hypot(a.x-b.x,a.y-b.y);
 }
 
-function recognize(hand){
+function recognize(h){
 
-  const wrist=hand[0];
+  const index=h[8].y<h[6].y;
+  const middle=h[12].y<h[10].y;
+  const ring=h[16].y<h[14].y;
+  const pinky=h[20].y<h[18].y;
 
-  const thumb=distance(hand[4],hand[2]) >
-              distance(hand[3],hand[2]);
+  const pinch=distance(h[4],h[8])<0.06;
 
-  const index=hand[8].y < hand[6].y;
-  const middle=hand[12].y < hand[10].y;
-  const ring=hand[16].y < hand[14].y;
-  const pinky=hand[20].y < hand[18].y;
-
-  const pinch=distance(hand[4],hand[8]) < 0.06;
-
-  if(pinch) return "🤏 PINCH";
+  if(pinch) return "PINCH";
 
   if(index && middle && ring && pinky)
-    return "✋ OPEN PALM";
+    return "PALM";
 
   if(!index && !middle && !ring && !pinky)
-    return "✊ FIST";
+    return "FIST";
 
   if(index && middle && !ring && !pinky)
-    return "✌️ TWO FINGERS";
+    return "TWO";
 
   if(index && !middle && !ring && !pinky)
-    return "☝️ POINT";
+    return "POINT";
 
-  if(thumb && !index && !middle && !ring && !pinky)
-    return "👍 THUMBS UP";
-
-  return "✋ HAND";
+  return "HAND";
 }
+
+function highlight(){
+
+  apps.forEach((app,i)=>{
+    app.classList.toggle("selected",i===selected);
+  });
+
+}
+
+function performAction(g){
+
+  const now=Date.now();
+
+  /*
+    Prevents the same gesture from firing
+    hundreds of times per second.
+  */
+
+  if(now-lastActionTime<900 && g===lastAction)
+    return;
+
+  lastAction=g;
+  lastActionTime=now;
+
+  if(g==="POINT"){
+
+    selected=(selected+1)%apps.length;
+
+    highlight();
+
+    actionText.innerText=
+      "☝️ Selected: "+apps[selected].innerText;
+
+  }
+
+  else if(g==="PINCH"){
+
+    actionText.innerText=
+      "🤏 Opening: "+apps[selected].innerText;
+
+  }
+
+  else if(g==="PALM"){
+
+    actionText.innerText=
+      "✋ HOME";
+
+  }
+
+  else if(g==="FIST"){
+
+    actionText.innerText=
+      "✊ BACK";
+
+  }
+
+  else if(g==="TWO"){
+
+    actionText.innerText=
+      "✌️ SWITCH WORKSPACE";
+
+  }
+
+}
+
+const hands=new Hands({
+
+  locateFile:file=>
+    `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`
+
+});
+
+hands.setOptions({
+
+  maxNumHands:1,
+  modelComplexity:1,
+  minDetectionConfidence:0.6,
+  minTrackingConfidence:0.6
+
+});
 
 hands.onResults(results=>{
 
-  if(results.multiHandLandmarks &&
-     results.multiHandLandmarks.length){
+  if(!results.multiHandLandmarks ||
+     !results.multiHandLandmarks.length){
 
-    gesture.innerText=
-      recognize(results.multiHandLandmarks[0]);
-
-  }else{
-
-    gesture.innerText="Show your hand ✋";
+    gestureText.innerText="Show your hand ✋";
+    return;
   }
+
+  const hand=results.multiHandLandmarks[0];
+
+  const g=recognize(hand);
+
+  if(g==="POINT")
+    gestureText.innerText="☝️ POINT";
+
+  else if(g==="PINCH")
+    gestureText.innerText="🤏 PINCH";
+
+  else if(g==="PALM")
+    gestureText.innerText="✋ OPEN PALM";
+
+  else if(g==="FIST")
+    gestureText.innerText="✊ FIST";
+
+  else if(g==="TWO")
+    gestureText.innerText="✌️ TWO FINGERS";
+
+  else
+    gestureText.innerText="✋ HAND";
+
+  performAction(g);
+
 });
 
 async function start(){
 
-  const stream=await navigator.mediaDevices.getUserMedia({
-    video:true,
-    audio:false
-  });
+  try{
 
-  video.srcObject=stream;
+    actionText.innerText="Starting camera...";
 
-  const camera=new Camera(video,{
-    onFrame:async()=>{
-      await hands.send({image:video});
-    },
-    width:640,
-    height:480
-  });
+    const stream=
+      await navigator.mediaDevices.getUserMedia({
+        video:true,
+        audio:false
+      });
 
-  camera.start();
+    video.srcObject=stream;
+
+    const camera=new Camera(video,{
+
+      onFrame:async()=>{
+        await hands.send({image:video});
+      },
+
+      width:640,
+      height:480
+
+    });
+
+    camera.start();
+
+    actionText.innerText=
+      "Camera active — show your hand";
+
+  }catch(error){
+
+    actionText.innerText=
+      "Camera error: "+error.message;
+
+  }
+
 }
 
+highlight();
 start();
+
 </script>
 
 </body>
