@@ -4,47 +4,44 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Gesture OS</title>
   <style>
-    body {
-      margin: 0;
-      background: #000;
-      color: white;
-      text-align: center;
-      font-family: Arial;
-    }
-
-    video {
-      width: 100%;
-      max-width: 600px;
-      margin-top: 20px;
-      transform: scaleX(-1);
-    }
-
-    button {
-      padding: 15px 25px;
-      font-size: 18px;
-      margin: 15px;
-    }
+    body{margin:0;background:#000;color:white;text-align:center;font-family:Arial}
+    video{width:100%;max-width:600px;transform:scaleX(-1)}
+    #status{font-size:20px;padding:15px}
   </style>
 </head>
 
 <body>
-
 <h1>GESTURE OS</h1>
-<p id="status">Camera is off</p>
-
-<button onclick="startCamera()">START</button>
-
-<br>
-
+<div id="status">Starting...</div>
 <video id="camera" autoplay playsinline></video>
 
-<script>
-async function startCamera() {
+<script type="module">
+import {
+  HandLandmarker,
+  FilesetResolver
+} from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.22/vision_bundle.js";
 
-  const status = document.getElementById("status");
-  const video = document.getElementById("camera");
+const video = document.getElementById("camera");
+const status = document.getElementById("status");
 
+let detector;
+
+async function start() {
   try {
+    status.textContent = "Loading hand AI...";
+
+    const vision = await FilesetResolver.forVisionTasks(
+      "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.22/wasm"
+    );
+
+    detector = await HandLandmarker.createFromOptions(vision, {
+      baseOptions: {
+        modelAssetPath:
+        "https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task"
+      },
+      runningMode: "VIDEO",
+      numHands: 2
+    });
 
     const stream = await navigator.mediaDevices.getUserMedia({
       video: true,
@@ -53,15 +50,29 @@ async function startCamera() {
 
     video.srcObject = stream;
 
-    status.innerText = "CAMERA ACTIVE ✓";
+    video.onloadeddata = () => {
+      status.textContent = "Show your hand ✋";
+      detect();
+    };
 
   } catch (error) {
-
-    status.innerText = "Camera error: " + error.message;
-
+    status.textContent = "Error: " + error.message;
   }
 }
-</script>
 
+function detect() {
+  const result = detector.detectForVideo(video, performance.now());
+
+  if (result.landmarks.length > 0) {
+    status.textContent = "✋ HAND DETECTED";
+  } else {
+    status.textContent = "Show your hand ✋";
+  }
+
+  requestAnimationFrame(detect);
+}
+
+start();
+</script>
 </body>
 </html>
