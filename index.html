@@ -2,7 +2,7 @@
 <html>
 <head>
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Gesture OS V3</title>
+<title>Gesture OS V4</title>
 
 <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
@@ -11,90 +11,78 @@
 *{box-sizing:border-box}
 
 body{
-  margin:0;
-  background:#050505;
-  color:white;
-  font-family:Arial,sans-serif;
-  text-align:center;
-  overflow:hidden;
+ margin:0;
+ background:#050505;
+ color:white;
+ font-family:Arial,sans-serif;
+ text-align:center;
 }
 
-h1{
-  margin:10px 0 2px;
-  font-size:25px;
-}
+h1{margin:10px 0 2px}
 
 #status{
-  font-size:14px;
-  opacity:.7;
+ font-size:13px;
+ opacity:.65;
 }
 
 #gesture{
-  font-size:24px;
-  margin:8px;
+ font-size:25px;
+ margin:8px;
 }
 
 #action{
-  font-size:18px;
-  min-height:25px;
+ font-size:18px;
+ min-height:25px;
 }
 
-#workspace{
-  position:relative;
-  width:94%;
-  height:45vh;
-  margin:10px auto;
-  border:1px solid #444;
-  border-radius:25px;
-  overflow:hidden;
+#settings{
+ margin:10px auto;
+ width:92%;
+ max-width:500px;
+ padding:12px;
+ border:1px solid #444;
+ border-radius:15px;
+}
+
+input{
+ width:80%;
 }
 
 video{
-  width:100%;
-  height:100%;
-  object-fit:cover;
-  transform:scaleX(-1);
-}
-
-#cursor{
-  position:absolute;
-  width:25px;
-  height:25px;
-  border:3px solid white;
-  border-radius:50%;
-  pointer-events:none;
-  transform:translate(-50%,-50%);
-  display:none;
+ width:94%;
+ max-width:600px;
+ border-radius:20px;
+ transform:scaleX(-1);
 }
 
 #apps{
-  display:grid;
-  grid-template-columns:repeat(3,1fr);
-  gap:10px;
-  width:94%;
-  margin:auto;
+ display:grid;
+ grid-template-columns:repeat(3,1fr);
+ gap:10px;
+ width:94%;
+ margin:15px auto;
 }
 
 .app{
-  height:75px;
-  border:2px solid #777;
-  border-radius:18px;
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  font-size:14px;
-  transition:.15s;
+ height:75px;
+ border:2px solid #777;
+ border-radius:18px;
+ display:flex;
+ align-items:center;
+ justify-content:center;
+ font-size:14px;
+ transition:.15s;
 }
 
 .selected{
-  border:3px solid white;
-  transform:scale(1.05);
+ border:3px solid white;
+ transform:scale(1.06);
 }
 
 #info{
-  margin-top:10px;
-  font-size:13px;
-  opacity:.6;
+ font-size:13px;
+ opacity:.6;
+ margin:10px;
 }
 </style>
 </head>
@@ -107,23 +95,22 @@ video{
 <div id="gesture">Show your hand ✋</div>
 <div id="action">Starting...</div>
 
-<div id="workspace">
-
-  <video id="camera" autoplay playsinline></video>
-
-  <div id="cursor"></div>
-
+<div id="settings">
+ Sensitivity:
+ <input id="sensitivity" type="range"
+        min="1" max="100" value="60">
+ <span id="sensValue">60</span>%
 </div>
 
+<video id="camera" autoplay playsinline></video>
+
 <div id="apps">
-
-  <div class="app">YouTube</div>
-  <div class="app">Camera</div>
-  <div class="app">Music</div>
-  <div class="app">Browser</div>
-  <div class="app">Messages</div>
-  <div class="app">Settings</div>
-
+ <div class="app">YouTube</div>
+ <div class="app">Camera</div>
+ <div class="app">Music</div>
+ <div class="app">Browser</div>
+ <div class="app">Messages</div>
+ <div class="app">Settings</div>
 </div>
 
 <div id="info">
@@ -135,8 +122,9 @@ video{
 const video=document.getElementById("camera");
 const gestureText=document.getElementById("gesture");
 const actionText=document.getElementById("action");
-const cursor=document.getElementById("cursor");
-const workspace=document.getElementById("workspace");
+
+const sensitivity=document.getElementById("sensitivity");
+const sensValue=document.getElementById("sensValue");
 
 const apps=[...document.querySelectorAll(".app")];
 
@@ -144,193 +132,185 @@ let selected=0;
 let lastGesture="";
 let lastTime=0;
 
+sensitivity.oninput=()=>{
+ sensValue.innerText=sensitivity.value;
+};
+
 function distance(a,b){
-  return Math.hypot(a.x-b.x,a.y-b.y);
+ return Math.hypot(a.x-b.x,a.y-b.y);
 }
 
 function recognize(h){
 
-  const index=h[8].y<h[6].y;
-  const middle=h[12].y<h[10].y;
-  const ring=h[16].y<h[14].y;
-  const pinky=h[20].y<h[18].y;
+ const s=Number(sensitivity.value);
 
-  const pinch=distance(h[4],h[8])<0.06;
+ /*
+   Higher sensitivity = easier gesture detection.
+   Lower sensitivity = requires clearer gestures.
+ */
 
-  if(pinch)return"PINCH";
+ const pinchLimit=0.035+(s/100)*0.055;
 
-  if(index&&middle&&ring&&pinky)
-    return"PALM";
+ const index=h[8].y<h[6].y;
+ const middle=h[12].y<h[10].y;
+ const ring=h[16].y<h[14].y;
+ const pinky=h[20].y<h[18].y;
 
-  if(!index&&!middle&&!ring&&!pinky)
-    return"FIST";
+ const pinch=distance(h[4],h[8])<pinchLimit;
 
-  if(index&&middle&&!ring&&!pinky)
-    return"TWO";
+ if(pinch)return"PINCH";
 
-  if(index&&!middle&&!ring&&!pinky)
-    return"POINT";
+ if(index&&middle&&ring&&pinky)
+   return"PALM";
 
-  return"HAND";
+ if(!index&&!middle&&!ring&&!pinky)
+   return"FIST";
+
+ if(index&&middle&&!ring&&!pinky)
+   return"TWO";
+
+ if(index&&!middle&&!ring&&!pinky)
+   return"POINT";
+
+ return"HAND";
 }
 
 function selectApp(){
 
-  apps.forEach((app,i)=>{
-    app.classList.toggle("selected",i===selected);
-  });
+ apps.forEach((app,i)=>{
+   app.classList.toggle("selected",i===selected);
+ });
 
 }
 
-function action(g,hand){
+function perform(g){
 
-  const now=Date.now();
+ const now=Date.now();
 
-  if(now-lastTime<700 && g===lastGesture)
-    return;
+ /*
+   Sensitivity also controls cooldown.
+ */
 
-  lastGesture=g;
-  lastTime=now;
+ const cooldown=1200-
+   Number(sensitivity.value)*5;
 
-  if(g==="POINT"){
+ if(now-lastTime<cooldown && g===lastGesture)
+   return;
 
-    /*
-      Move virtual cursor using
-      the index fingertip.
-    */
+ lastGesture=g;
+ lastTime=now;
 
-    const x=1-hand[8].x;
-    const y=hand[8].y;
+ if(g==="POINT"){
 
-    cursor.style.display="block";
-    cursor.style.left=(x*100)+"%";
-    cursor.style.top=(y*100)+"%";
+   selected=(selected+1)%apps.length;
 
-    selected=Math.min(
-      apps.length-1,
-      Math.max(0,
-        Math.floor(x*3)+Math.floor(y*2)*3
-      )
-    );
+   selectApp();
 
-    selectApp();
+   actionText.innerText=
+     "☝️ Selected: "+apps[selected].innerText;
+ }
 
-    actionText.innerText=
-      "☝️ "+apps[selected].innerText;
+ else if(g==="PINCH"){
 
-  }
+   actionText.innerText=
+     "🤏 Opening: "+apps[selected].innerText;
+ }
 
-  else if(g==="PINCH"){
+ else if(g==="PALM"){
 
-    actionText.innerText=
-      "🤏 OPEN → "+apps[selected].innerText;
+   actionText.innerText="✋ HOME";
+ }
 
-  }
+ else if(g==="FIST"){
 
-  else if(g==="PALM"){
+   actionText.innerText="✊ BACK";
+ }
 
-    actionText.innerText=
-      "✋ HOME";
+ else if(g==="TWO"){
 
-    cursor.style.display="none";
-
-  }
-
-  else if(g==="FIST"){
-
-    actionText.innerText=
-      "✊ BACK";
-
-  }
-
-  else if(g==="TWO"){
-
-    actionText.innerText=
-      "✌️ SWITCH WORKSPACE";
-
-  }
+   actionText.innerText=
+     "✌️ SWITCH WORKSPACE";
+ }
 
 }
 
 const hands=new Hands({
 
-  locateFile:file=>
-  `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`
+ locateFile:file=>
+ `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`
 
 });
 
 hands.setOptions({
 
-  maxNumHands:1,
-  modelComplexity:1,
-  minDetectionConfidence:.6,
-  minTrackingConfidence:.6
+ maxNumHands:1,
+ modelComplexity:1,
+ minDetectionConfidence:.6,
+ minTrackingConfidence:.6
 
 });
 
 hands.onResults(results=>{
 
-  if(!results.multiHandLandmarks?.length){
+ if(!results.multiHandLandmarks?.length){
 
-    gestureText.innerText="Show your hand ✋";
-    cursor.style.display="none";
-    return;
+   gestureText.innerText="Show your hand ✋";
+   return;
+ }
 
-  }
+ const hand=results.multiHandLandmarks[0];
 
-  const hand=results.multiHandLandmarks[0];
+ const g=recognize(hand);
 
-  const g=recognize(hand);
+ const names={
+   POINT:"☝️ POINT",
+   PINCH:"🤏 PINCH",
+   PALM:"✋ OPEN PALM",
+   FIST:"✊ FIST",
+   TWO:"✌️ TWO FINGERS",
+   HAND:"✋ HAND"
+ };
 
-  const names={
-    POINT:"☝️ POINT",
-    PINCH:"🤏 PINCH",
-    PALM:"✋ OPEN PALM",
-    FIST:"✊ FIST",
-    TWO:"✌️ TWO FINGERS",
-    HAND:"✋ HAND"
-  };
+ gestureText.innerText=names[g];
 
-  gestureText.innerText=names[g];
-
-  action(g,hand);
+ perform(g);
 
 });
 
 async function start(){
 
-  try{
+ try{
 
-    const stream=
-      await navigator.mediaDevices.getUserMedia({
-        video:true,
-        audio:false
-      });
+   const stream=
+     await navigator.mediaDevices.getUserMedia({
+       video:true,
+       audio:false
+     });
 
-    video.srcObject=stream;
+   video.srcObject=stream;
 
-    const camera=new Camera(video,{
+   const camera=new Camera(video,{
 
-      onFrame:async()=>{
-        await hands.send({image:video});
-      },
+     onFrame:async()=>{
+       await hands.send({image:video});
+     },
 
-      width:640,
-      height:480
+     width:640,
+     height:480
 
-    });
+   });
 
-    camera.start();
+   camera.start();
 
-    actionText.innerText=
-      "Gesture OS ready 🚀";
+   actionText.innerText=
+     "Gesture OS ready 🚀";
 
-  }catch(error){
+ }catch(error){
 
-    actionText.innerText=
-      "Camera error";
+   actionText.innerText=
+     "Camera error: "+error.message;
 
-  }
+ }
 
 }
 
