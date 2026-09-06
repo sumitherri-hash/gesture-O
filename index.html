@@ -3,21 +3,62 @@
 <head>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Gesture OS</title>
+
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision/vision_bundle.js"
+          crossorigin="anonymous"></script>
+
+  <style>
+    body {
+      margin: 0;
+      background: #000;
+      color: white;
+      text-align: center;
+      font-family: Arial;
+    }
+
+    #camera {
+      width: 100%;
+      max-width: 500px;
+      transform: scaleX(-1);
+    }
+
+    #status {
+      font-size: 20px;
+      margin: 15px;
+    }
+  </style>
 </head>
+
 <body>
+
   <h1>Gesture OS</h1>
-  <button onclick="startCamera()">Start Gesture Control</button>
+  <div id="status">Starting...</div>
 
   <video id="camera" autoplay playsinline></video>
 
-  <script>
-    async function startCamera() {
+  <script type="module">
+
+    const video = document.getElementById("camera");
+    const status = document.getElementById("status");
+
+    async function start() {
+
       const stream = await navigator.mediaDevices.getUserMedia({
-        video: true
+        video: {
+          facingMode: "user"
+        }
       });
 
-      document.getElementById("camera").srcObject = stream;
+      video.srcObject = stream;
+
+      status.innerText = "Camera ready ✋";
+
+      // Gesture engine will be added next.
     }
+
+    start();
+
   </script>
+
 </body>
 </html>
