@@ -4,9 +4,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Gesture OS</title>
 
-  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision/vision_bundle.js"
-          crossorigin="anonymous"></script>
-
   <style>
     body {
       margin: 0;
@@ -16,49 +13,127 @@
       font-family: Arial;
     }
 
-    #camera {
+    #box {
+      position: relative;
       width: 100%;
-      max-width: 500px;
+      max-width: 600px;
+      margin: auto;
+    }
+
+    video, canvas {
+      width: 100%;
       transform: scaleX(-1);
+    }
+
+    canvas {
+      position: absolute;
+      left: 0;
+      top: 0;
     }
 
     #status {
       font-size: 20px;
-      margin: 15px;
+      padding: 15px;
     }
   </style>
 </head>
 
 <body>
 
-  <h1>Gesture OS</h1>
-  <div id="status">Starting...</div>
+<h1>GESTURE OS</h1>
+<div id="status">Starting camera...</div>
 
+<div id="box">
   <video id="camera" autoplay playsinline></video>
+  <canvas id="canvas"></canvas>
+</div>
 
-  <script type="module">
+<script type="module">
 
-    const video = document.getElementById("camera");
-    const status = document.getElementById("status");
+import {
+  HandLandmarker,
+  FilesetResolver
+} from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.22";
 
-    async function start() {
+const video = document.getElementById("camera");
+const canvas = document.getElementById("canvas");
+const ctx = canvas.getContext("2d");
+const status = document.getElementById("status");
 
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: {
-          facingMode: "user"
-        }
-      });
+let handLandmarker;
 
-      video.srcObject = stream;
+async function setup() {
 
-      status.innerText = "Camera ready ✋";
+  const vision = await FilesetResolver.forVisionTasks(
+    "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.22/wasm"
+  );
 
-      // Gesture engine will be added next.
+  handLandmarker = await HandLandmarker.createFromOptions(
+    vision,
+    {
+      baseOptions: {
+        modelAssetPath:
+          "https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task"
+      },
+      runningMode: "VIDEO",
+      numHands: 2
+    }
+  );
+
+  const stream = await navigator.mediaDevices.getUserMedia({
+    video: { facingMode: "user" }
+  });
+
+  video.srcObject = stream;
+
+  video.onloadeddata = () => {
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    detect();
+  };
+}
+
+function detect() {
+
+  const result = handLandmarker.detectForVideo(
+    video,
+    performance.now()
+  );
+
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  if (result.landmarks.length > 0) {
+
+    status.innerText = "✋ HAND DETECTED";
+
+    for (const hand of result.landmarks) {
+
+      for (const point of hand) {
+
+        ctx.beginPath();
+        ctx.arc(
+          point.x * canvas.width,
+          point.y * canvas.height,
+          6,
+          0,
+          Math.PI * 2
+        );
+
+        ctx.fill();
+      }
     }
 
-    start();
+  } else {
 
-  </script>
+    status.innerText = "Show your hand ✋";
+  }
+
+  requestAnimationFrame(detect);
+}
+
+setup();
+
+</script>
 
 </body>
 </html>
