@@ -1,0 +1,38 @@
+name: Build FIRE AI
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Generate Gradle wrapper
+        working-directory: fire-android
+        run: gradle wrapper --gradle-version 8.13
+
+      - name: Build FIRE
+        working-directory: fire-android
+        run: ./gradlew assembleDebug
+
+      - name: Upload FIRE APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: FIRE-debug
+          path: fire-android/app/build/outputs/apk/debug/app-debug.apk
