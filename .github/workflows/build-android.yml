@@ -3,24 +3,22 @@ name: Build PHOENIX Android
 on:
   workflow_dispatch:
   push:
-    paths:
-      - "android/**"
 
 jobs:
   build:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout
+      - name: Get source code
         uses: actions/checkout@v4
 
-      - name: Set up JDK
+      - name: Install Java
         uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: "17"
 
-      - name: Set up Gradle
+      - name: Install Gradle
         uses: gradle/actions/setup-gradle@v4
 
       - name: Build APK
