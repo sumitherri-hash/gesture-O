@@ -1,8 +1,10 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
+<meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Gesture OS V9</title>
+
+<title>Gesture OS V10</title>
 
 <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
@@ -193,31 +195,42 @@ video{
 
 <body>
 
-<h1>GESTURE OS V9</h1>
+<h1>GESTURE OS V10</h1>
 
 <div id="status">
-AI SPATIAL INTERFACE • REAL WEB ACTIONS
+AI SPATIAL INTERFACE • GESTURE CONTROL
 </div>
 
-<div id="gesture">Show your hand ✋</div>
+<div id="gesture">
+Show your hand ✋
+</div>
 
-<div id="action">Starting...</div>
+<div id="action">
+Starting...
+</div>
 
 <div id="controls">
+
 Sensitivity:
-<input id="sensitivity"
-       type="range"
-       min="1"
-       max="100"
-       value="40">
+
+<input
+  id="sensitivity"
+  type="range"
+  min="1"
+  max="100"
+  value="40">
+
 <span id="sensValue">40</span>%
+
 </div>
 
 <div id="stage">
 
-<video id="camera"
-       autoplay
-       playsinline></video>
+<video
+  id="camera"
+  autoplay
+  playsinline>
+</video>
 
 <div id="cursor">
   <div id="cursorDot"></div>
@@ -245,13 +258,22 @@ GESTURE OS
 <div id="window">
 
 <div id="windowHeader">
-<div id="windowTitle">App</div>
-<div>GESTURE OS</div>
+
+<div id="windowTitle">
+App
+</div>
+
+<div>
+GESTURE OS
+</div>
+
 </div>
 
 <div id="windowBody">
 
-<div id="windowIcon">🚀</div>
+<div id="windowIcon">
+🚀
+</div>
 
 <div id="windowText">
 App Window
@@ -262,106 +284,256 @@ App Window
 </div>
 
 </div>
+
 </div>
 
 </div>
 
 <div id="info">
-☝️ Move • 🤏 Open • ✋ Home • ✊ Back • ✌️ Workspace
+☝️ Select • 🤏 Open • ✋ Home • ✊ Back • ✌️ Apps • 👈👉 Move • ⬆️⬇️ Scroll • Swipe
 </div>
 
 <script>
 
-const video=document.getElementById("camera");
-const cursor=document.getElementById("cursor");
-const launcher=document.getElementById("launcher");
-const windowBox=document.getElementById("window");
+/* =====================================================
+   ELEMENTS
+===================================================== */
 
-const gestureText=document.getElementById("gesture");
-const actionText=document.getElementById("action");
+const video =
+  document.getElementById("camera");
 
-const sensitivity=document.getElementById("sensitivity");
-const sensValue=document.getElementById("sensValue");
+const cursor =
+  document.getElementById("cursor");
 
-const apps=[...document.querySelectorAll(".app")];
+const launcher =
+  document.getElementById("launcher");
 
-let selected=0;
-let smoothX=.5;
-let smoothY=.5;
+const windowBox =
+  document.getElementById("window");
 
-let pinchLocked=false;
-let appOpen=false;
-let lastAction=0;
+const gestureText =
+  document.getElementById("gesture");
 
-const icons={
+const actionText =
+  document.getElementById("action");
+
+const sensitivity =
+  document.getElementById("sensitivity");
+
+const sensValue =
+  document.getElementById("sensValue");
+
+const apps =
+  [...document.querySelectorAll(".app")];
+
+
+/* =====================================================
+   STATE
+===================================================== */
+
+let selected = 0;
+
+let smoothX = .5;
+let smoothY = .5;
+
+let pinchLocked = false;
+
+let appOpen = false;
+
+let lastAction = 0;
+
+
+/* Movement state */
+
+let lastX = null;
+let lastY = null;
+
+let movementLock = false;
+
+let movementTimer = null;
+
+
+/* =====================================================
+   APP ICONS
+===================================================== */
+
+const icons = {
+
   YouTube:"▶️",
+
   Google:"🔎",
+
   Music:"🎵",
+
   Browser:"🌐",
+
   Messages:"💬",
+
   Settings:"⚙️"
+
 };
 
-sensitivity.oninput=()=>{
-  sensValue.innerText=sensitivity.value;
+
+/* =====================================================
+   SENSITIVITY
+===================================================== */
+
+sensitivity.oninput = () => {
+
+  sensValue.innerText =
+    sensitivity.value;
+
 };
+
+
+/* =====================================================
+   DISTANCE
+===================================================== */
 
 function distance(a,b){
-  return Math.hypot(a.x-b.x,a.y-b.y);
+
+  return Math.hypot(
+    a.x-b.x,
+    a.y-b.y
+  );
+
 }
+
+
+/* =====================================================
+   HAND RECOGNITION
+===================================================== */
 
 function recognize(h){
 
-  const s=Number(sensitivity.value);
+  const s =
+    Number(sensitivity.value);
 
-  const pinchLimit=
+  const pinchLimit =
     .035+(s/100)*.035;
 
-  if(distance(h[4],h[8])<pinchLimit)
+
+  /* PINCH */
+
+  if(
+    distance(h[4],h[8])
+    < pinchLimit
+  ){
+
     return "PINCH";
 
-  const index=h[8].y<h[6].y;
-  const middle=h[12].y<h[10].y;
-  const ring=h[16].y<h[14].y;
-  const pinky=h[20].y<h[18].y;
+  }
 
-  if(index&&middle&&ring&&pinky)
+
+  const index =
+    h[8].y<h[6].y;
+
+  const middle =
+    h[12].y<h[10].y;
+
+  const ring =
+    h[16].y<h[14].y;
+
+  const pinky =
+    h[20].y<h[18].y;
+
+
+  /* PALM */
+
+  if(
+    index &&
+    middle &&
+    ring &&
+    pinky
+  ){
+
     return "PALM";
 
-  if(!index&&!middle&&!ring&&!pinky)
+  }
+
+
+  /* FIST */
+
+  if(
+    !index &&
+    !middle &&
+    !ring &&
+    !pinky
+  ){
+
     return "FIST";
 
-  if(index&&middle&&!ring&&!pinky)
+  }
+
+
+  /* TWO FINGERS */
+
+  if(
+    index &&
+    middle &&
+    !ring &&
+    !pinky
+  ){
+
     return "TWO";
 
-  if(index&&!middle&&!ring&&!pinky)
+  }
+
+
+  /* POINT */
+
+  if(
+    index &&
+    !middle &&
+    !ring &&
+    !pinky
+  ){
+
     return "POINT";
 
+  }
+
+
   return "HAND";
+
 }
+
+
+/* =====================================================
+   APP HIGHLIGHT
+===================================================== */
 
 function highlight(){
 
-  apps.forEach((app,i)=>{
-    app.classList.toggle(
-      "selected",
-      i===selected
-    );
-  });
+  apps.forEach(
+    (app,i)=>{
+
+      app.classList.toggle(
+        "selected",
+        i===selected
+      );
+
+    }
+  );
 
 }
 
+
+/* =====================================================
+   OPEN APP
+===================================================== */
+
 function openApp(){
 
-  const name=apps[selected].innerText;
+  const name =
+    apps[selected].innerText;
 
-  /*
-    Real browser actions.
-  */
+
+  /* YouTube */
 
   if(name==="YouTube"){
 
-    actionText.innerText=
+    actionText.innerText =
       "🚀 Opening YouTube...";
 
     window.open(
@@ -370,11 +542,15 @@ function openApp(){
     );
 
     return;
+
   }
+
+
+  /* Google */
 
   if(name==="Google"){
 
-    actionText.innerText=
+    actionText.innerText =
       "🚀 Opening Google...";
 
     window.open(
@@ -383,111 +559,467 @@ function openApp(){
     );
 
     return;
+
   }
 
-  /*
-    Other apps remain inside
-    Gesture OS for now.
-  */
 
-  launcher.style.display="none";
-  windowBox.style.display="block";
+  /* Other apps */
+
+  launcher.style.display =
+    "none";
+
+  windowBox.style.display =
+    "block";
+
 
   document.getElementById(
     "windowTitle"
   ).innerText=name;
 
+
   document.getElementById(
     "windowText"
-  ).innerText=name+" Window";
+  ).innerText=
+    name+" Window";
+
 
   document.getElementById(
     "windowIcon"
-  ).innerText=icons[name];
+  ).innerText=
+    icons[name];
 
-  actionText.innerText=
+
+  actionText.innerText =
     "🤏 OPENED → "+name;
 
+
   appOpen=true;
+
 }
 
-function closeApp(){
 
-  windowBox.style.display="none";
-  launcher.style.display="block";
+/* =====================================================
+   HOME
+===================================================== */
+
+function goHome(){
+
+  windowBox.style.display =
+    "none";
+
+  launcher.style.display =
+    "block";
 
   appOpen=false;
 
-  actionText.innerText=
+  cursor.style.display =
+    "none";
+
+  actionText.innerText =
     "✋ HOME";
+
 }
+
+
+/* =====================================================
+   BACK
+===================================================== */
+
+function goBack(){
+
+  if(appOpen){
+
+    goHome();
+
+    return;
+
+  }
+
+  actionText.innerText =
+    "✊ BACK";
+
+}
+
+
+/* =====================================================
+   CURSOR
+===================================================== */
 
 function moveCursor(hand){
 
-  const x=1-hand[8].x;
-  const y=hand[8].y;
+  const x =
+    1-hand[8].x;
 
-  const s=Number(sensitivity.value);
+  const y =
+    hand[8].y;
 
-  const smoothing=
+
+  const s =
+    Number(sensitivity.value);
+
+
+  const smoothing =
     .18+(s/100)*.22;
 
-  smoothX+=(x-smoothX)*smoothing;
-  smoothY+=(y-smoothY)*smoothing;
 
-  cursor.style.display="block";
+  smoothX +=
+    (x-smoothX)*smoothing;
 
-  cursor.style.left=
+  smoothY +=
+    (y-smoothY)*smoothing;
+
+
+  cursor.style.display =
+    "block";
+
+
+  cursor.style.left =
     (smoothX*100)+"%";
 
-  cursor.style.top=
+
+  cursor.style.top =
     (smoothY*100)+"%";
+
 
   if(appOpen)
     return;
 
-  const column=Math.min(
-    2,
-    Math.max(
-      0,
-      Math.floor(smoothX*3)
-    )
-  );
 
-  const row=Math.min(
-    1,
-    Math.max(
-      0,
-      Math.floor(smoothY*2)
-    )
-  );
+  const column =
+    Math.min(
+      2,
+      Math.max(
+        0,
+        Math.floor(smoothX*3)
+      )
+    );
 
-  const newSelected=
+
+  const row =
+    Math.min(
+      1,
+      Math.max(
+        0,
+        Math.floor(smoothY*2)
+      )
+    );
+
+
+  const newSelected =
     row*3+column;
 
-  if(newSelected!==selected){
 
-    selected=newSelected;
+  if(
+    newSelected !== selected
+  ){
+
+    selected =
+      newSelected;
 
     highlight();
 
-    actionText.innerText=
+
+    actionText.innerText =
       "☝️ "+
       apps[selected].innerText;
+
   }
+
 }
 
-function executeGesture(gesture,hand){
 
-  const now=Date.now();
+/* =====================================================
+   MOVEMENT DETECTOR
+===================================================== */
 
-  const s=Number(sensitivity.value);
+function detectMovement(hand){
 
-  /*
-    PINCH LOCK
-  */
+  const x =
+    1-hand[0].x;
 
-  if(gesture==="PINCH"){
+  const y =
+    hand[0].y;
+
+
+  if(
+    lastX===null ||
+    lastY===null
+  ){
+
+    lastX=x;
+    lastY=y;
+
+    return null;
+
+  }
+
+
+  const dx =
+    x-lastX;
+
+  const dy =
+    y-lastY;
+
+
+  lastX=x;
+  lastY=y;
+
+
+  const s =
+    Number(sensitivity.value);
+
+
+  const moveThreshold =
+    .025+
+    (100-s)*.00035;
+
+
+  const swipeThreshold =
+    .10+
+    (100-s)*.0007;
+
+
+  if(movementLock)
+    return null;
+
+
+  /* SWIPE HORIZONTAL */
+
+  if(
+    Math.abs(dx)>swipeThreshold &&
+    Math.abs(dx)>Math.abs(dy)
+  ){
+
+    movementLock=true;
+
+    clearTimeout(
+      movementTimer
+    );
+
+    movementTimer =
+      setTimeout(
+        ()=>{
+          movementLock=false;
+        },
+        450
+      );
+
+
+    return dx>0
+      ? "SWIPE_RIGHT"
+      : "SWIPE_LEFT";
+
+  }
+
+
+  /* SWIPE VERTICAL */
+
+  if(
+    Math.abs(dy)>swipeThreshold &&
+    Math.abs(dy)>Math.abs(dx)
+  ){
+
+    movementLock=true;
+
+    clearTimeout(
+      movementTimer
+    );
+
+    movementTimer =
+      setTimeout(
+        ()=>{
+          movementLock=false;
+        },
+        450
+      );
+
+
+    return dy<0
+      ? "SWIPE_UP"
+      : "SWIPE_DOWN";
+
+  }
+
+
+  /* MOVE HORIZONTAL */
+
+  if(
+    Math.abs(dx)>moveThreshold &&
+    Math.abs(dx)>Math.abs(dy)*1.25
+  ){
+
+    return dx>0
+      ? "MOVE_RIGHT"
+      : "MOVE_LEFT";
+
+  }
+
+
+  /* MOVE VERTICAL */
+
+  if(
+    Math.abs(dy)>moveThreshold &&
+    Math.abs(dy)>Math.abs(dx)*1.25
+  ){
+
+    return dy<0
+      ? "MOVE_UP"
+      : "MOVE_DOWN";
+
+  }
+
+
+  return null;
+
+}
+
+
+/* =====================================================
+   MOVEMENT ACTIONS
+===================================================== */
+
+function executeMovement(action){
+
+  if(!action)
+    return;
+
+
+  const now =
+    Date.now();
+
+
+  if(
+    now-lastAction<250
+  )
+    return;
+
+
+  lastAction =
+    now;
+
+
+  switch(action){
+
+
+    case "MOVE_LEFT":
+
+      actionText.innerText =
+        "👈 MOVE LEFT → BACK";
+
+      goBack();
+
+      break;
+
+
+    case "MOVE_RIGHT":
+
+      actionText.innerText =
+        "👉 MOVE RIGHT → RECENTS";
+
+      /*
+        Android bridge:
+        GLOBAL_ACTION_RECENTS
+      */
+
+      break;
+
+
+    case "MOVE_UP":
+
+      actionText.innerText =
+        "👆 MOVE UP → SCROLL UP";
+
+      window.scrollBy({
+        top:-350,
+        behavior:"smooth"
+      });
+
+      break;
+
+
+    case "MOVE_DOWN":
+
+      actionText.innerText =
+        "👇 MOVE DOWN → SCROLL DOWN";
+
+      window.scrollBy({
+        top:350,
+        behavior:"smooth"
+      });
+
+      break;
+
+
+    case "SWIPE_LEFT":
+
+      actionText.innerText =
+        "⬅️ SWIPE LEFT → PREVIOUS";
+
+      selected =
+        (selected-1+apps.length)
+        %apps.length;
+
+      highlight();
+
+      break;
+
+
+    case "SWIPE_RIGHT":
+
+      actionText.innerText =
+        "➡️ SWIPE RIGHT → NEXT";
+
+      selected =
+        (selected+1)
+        %apps.length;
+
+      highlight();
+
+      break;
+
+
+    case "SWIPE_UP":
+
+      actionText.innerText =
+        "⬆️ SWIPE UP → NEXT SHORT";
+
+      break;
+
+
+    case "SWIPE_DOWN":
+
+      actionText.innerText =
+        "⬇️ SWIPE DOWN → PREVIOUS SHORT";
+
+      break;
+
+  }
+
+}
+
+
+/* =====================================================
+   MAIN GESTURE ENGINE
+===================================================== */
+
+function executeGesture(
+  gesture,
+  hand
+){
+
+  const now =
+    Date.now();
+
+
+  const s =
+    Number(sensitivity.value);
+
+
+  /* PINCH */
+
+  if(
+    gesture==="PINCH"
+  ){
 
     if(!pinchLocked){
 
@@ -496,200 +1028,282 @@ function executeGesture(gesture,hand){
       openApp();
 
       lastAction=now;
+
     }
 
     return;
+
   }
 
-  /*
-    Release pinch only when
-    fingers clearly separate.
-  */
+
+  /* RELEASE PINCH */
 
   if(pinchLocked){
 
-    const d=
-      distance(hand[4],hand[8]);
+    const d =
+      distance(
+        hand[4],
+        hand[8]
+      );
 
-    const releaseLimit=
-      .055+(s/100)*.035;
 
-    if(d>releaseLimit){
+    const releaseLimit =
+      .055+
+      (s/100)*.035;
+
+
+    if(
+      d>releaseLimit
+    ){
 
       pinchLocked=false;
+
     }
 
     return;
+
   }
 
-  /*
-    POINT = fast cursor
-  */
 
-  if(gesture==="POINT"){
+  /* POINT */
+
+  if(
+    gesture==="POINT"
+  ){
 
     moveCursor(hand);
 
-    return;
   }
 
-  /*
-    PALM = HOME
-  */
 
-  if(gesture==="PALM"){
+  /* PALM */
 
-    if(now-lastAction>500){
+  if(
+    gesture==="PALM"
+  ){
 
-      closeApp();
+    if(
+      now-lastAction>500
+    ){
 
-      cursor.style.display="none";
+      goHome();
 
       lastAction=now;
+
     }
 
-    return;
   }
 
-  /*
-    FIST = BACK
-  */
 
-  if(gesture==="FIST"){
+  /* FIST */
 
-    if(now-lastAction>500){
+  if(
+    gesture==="FIST"
+  ){
 
-      if(appOpen){
-        closeApp();
-      }else{
-        actionText.innerText=
-          "✊ BACK";
-      }
+    if(
+      now-lastAction>500
+    ){
+
+      goBack();
 
       lastAction=now;
+
     }
 
-    return;
   }
 
-  /*
-    TWO = WORKSPACE
-  */
 
-  if(gesture==="TWO"){
+  /* TWO */
 
-    if(now-lastAction>700){
+  if(
+    gesture==="TWO"
+  ){
 
-      actionText.innerText=
-        "✌️ SWITCH WORKSPACE";
+    if(
+      now-lastAction>700
+    ){
+
+      actionText.innerText =
+        "✌️ APP WORKSPACE";
 
       lastAction=now;
+
     }
+
   }
+
+
+  /* MOVEMENT */
+
+  const movement =
+    detectMovement(hand);
+
+
+  executeMovement(
+    movement
+  );
+
 }
 
-const hands=new Hands({
 
-  locateFile:file=>
-    `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`
+/* =====================================================
+   MEDIAPIPE
+===================================================== */
 
-});
+const hands =
+  new Hands({
+
+    locateFile:file =>
+      `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`
+
+  });
+
 
 hands.setOptions({
 
   maxNumHands:1,
+
   modelComplexity:1,
+
   minDetectionConfidence:.65,
+
   minTrackingConfidence:.65
 
 });
 
-hands.onResults(results=>{
 
-  if(
-    !results.multiHandLandmarks ||
-    !results.multiHandLandmarks.length
-  ){
+hands.onResults(
+  results=>{
 
-    gestureText.innerText=
-      "Show your hand ✋";
+    if(
+      !results.multiHandLandmarks ||
+      !results.multiHandLandmarks.length
+    ){
 
-    cursor.style.display="none";
+      gestureText.innerText =
+        "Show your hand ✋";
 
-    pinchLocked=false;
+      cursor.style.display =
+        "none";
 
-    return;
+      pinchLocked=false;
+
+      lastX=null;
+      lastY=null;
+
+      return;
+
+    }
+
+
+    const hand =
+      results.multiHandLandmarks[0];
+
+
+    const gesture =
+      recognize(hand);
+
+
+    const names={
+
+      POINT:"☝️ POINT",
+
+      PINCH:"🤏 PINCH",
+
+      PALM:"✋ OPEN PALM",
+
+      FIST:"✊ FIST",
+
+      TWO:"✌️ TWO FINGERS",
+
+      HAND:"✋ HAND"
+
+    };
+
+
+    gestureText.innerText =
+      names[gesture];
+
+
+    executeGesture(
+      gesture,
+      hand
+    );
+
   }
+);
 
-  const hand=
-    results.multiHandLandmarks[0];
 
-  const gesture=
-    recognize(hand);
-
-  const names={
-
-    POINT:"☝️ POINT",
-    PINCH:"🤏 PINCH",
-    PALM:"✋ OPEN PALM",
-    FIST:"✊ FIST",
-    TWO:"✌️ TWO FINGERS",
-    HAND:"✋ HAND"
-
-  };
-
-  gestureText.innerText=
-    names[gesture];
-
-  executeGesture(
-    gesture,
-    hand
-  );
-
-});
+/* =====================================================
+   CAMERA
+===================================================== */
 
 async function start(){
 
   try{
 
-    const stream=
-      await navigator.mediaDevices
+    const stream =
+      await navigator
+      .mediaDevices
       .getUserMedia({
 
         video:true,
+
         audio:false
 
       });
 
-    video.srcObject=stream;
 
-    const camera=
-      new Camera(video,{
+    video.srcObject =
+      stream;
 
-        onFrame:async()=>{
-          await hands.send({
-            image:video
-          });
-        },
 
-        width:640,
-        height:480
+    const camera =
+      new Camera(
+        video,
+        {
 
-      });
+          onFrame:async()=>{
+
+            await hands.send({
+              image:video
+            });
+
+          },
+
+          width:640,
+
+          height:480
+
+        }
+      );
+
 
     camera.start();
 
-    actionText.innerText=
-      "Gesture OS V9 ready 🚀";
+
+    actionText.innerText =
+      "Gesture OS V10 ready 🚀";
+
 
   }catch(error){
 
-    actionText.innerText=
-      "Camera error: "+error.message;
+    actionText.innerText =
+      "Camera error: "+
+      error.message;
+
   }
+
 }
 
+
+/* =====================================================
+   START
+===================================================== */
+
 highlight();
+
 start();
 
 </script>
