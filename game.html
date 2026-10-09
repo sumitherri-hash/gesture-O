@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>NEON 2099</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;overflow:hidden;background:#050713;color:#eafaff;font-family:monospace}
+canvas{display:block}
+#hud{position:fixed;top:12px;left:12px;pointer-events:none}
+h1{font-size:23px;letter-spacing:4px;margin:0;color:#7df9ff}
+#status{font-size:11px;margin-top:6px}
+#mission{margin-top:10px;padding:10px;border-left:2px solid #7df9ff;background:#071528dd;font-size:12px;line-height:1.6}
+#controls{position:fixed;bottom:15px;left:0;right:0;display:flex;justify-content:space-between;align-items:end;padding:0 15px}
+.pad{display:grid;grid-template-columns:48px 48px 48px;grid-template-rows:48px 48px;gap:5px}
+button{background:#091c32ee;color:#bdfaff;border:1px solid #39cce7;border-radius:10px;font: bold 16px monospace;touch-action:none}
+#up{grid-column:2}#left{grid-column:1;grid-row:2}#down{grid-column:2;grid-row:2}#right{grid-column:3;grid-row:2}
+.actions{display:flex;flex-direction:column;gap:8px}
+.actions button{width:82px;height:48px;font-size:11px}
+#toast{position:fixed;top:43%;width:100%;text-align:center;color:#8bffff;font-size:13px;pointer-events:none;text-shadow:0 0 12px #00eaff}
+#hint{position:fixed;bottom:3px;width:100%;text-align:center;font-size:9px;color:#8da7c3;pointer-events:none}
+</style>
+</head>
+<body>
+
+<div id="hud">
+<h1>NEON 2099</h1>
+<div id="status">SECTOR 07 // ONLINE</div>
+<div id="mission">MISSION 01<br>Find the research terminal.<br>Distance: <span id="dist">0</span> m</div>
+</div>
+
+<div id="toast">WELCOME TO THE FUTURE</div>
+
+<div id="controls">
+<div class="pad">
+<button id="up">▲</button>
+<button id="left">◀</button>
+<button id="down">▼</button>
+<button id="right">▶</button>
+</div>
+<div class="actions">
+<button id="interact">INTERACT</button>
+<button id="run">RUN: OFF</button>
+</div>
+</div>
+
+<div id="hint">MOVE • DRAG TO LOOK • FIND THE TERMINAL</div>
+
+<script type="module">
+import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js';
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x050713);
+scene.fog = new THREE.FogExp2(0x050713, 0.009);
+
+const camera = new THREE.PerspectiveCamera(
+  70, innerWidth / innerHeight, 0.1, 500
+);
+
+const renderer = new THREE.WebGLRenderer({antialias:true});
+renderer.setSize(innerWidth, innerHeight);
+renderer.setPixelRatio(Math.min(devicePixelRatio, 1.5));
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+document.body.appendChild(renderer.domElement);
+
+scene.add(new THREE.HemisphereLight(0x8bbcff, 0x101020, 2));
+
+const sunlight = new THREE.DirectionalLight(0x8edfff, 2);
+sunlight.position.set(30, 60, 10);
+scene.add(sunlight);
+
+function material(color, glow=0) {
+  return new THREE.MeshStandardMaterial({
+    color:color,
+    emissive:color,
+    emissiveIntensity:glow,
+    roughness:0.65
+  });
+}
+
+const cyan = material(0x00dfff, 2);
+const pink = material(0xff208d, 2);
+const gold = material(0xffc85c, 1.5);
+const buildingMaterials = [
+  material(0x182944),
+  material(0x202038),
+  material(0x142d39),
+  material(0x242541)
+];
+
+function makeBox(x,y,z,w,h,d,mat) {
+  const mesh = new THREE.Mesh(
+    new THREE.BoxGeometry(w,h,d), mat
+  );
+  mesh.position.set(x,y,z);
+  scene.add(mesh);
+  return mesh;
+}
+
+// City ground
+const ground = new THREE.Mesh(
+  new THREE.PlaneGeometry(500,500),
+  material(0x101a2b)
+);
+ground.rotation.x = -Math.PI/2;
+ground.position.y = -0.12;
+scene.add(ground);
+
+const grid = new THREE.GridHelper(500,100,0x174a69,0x112239);
+grid.position.y = -0.09;
+scene.add(grid);
+
+// Main road
+makeBox(0,0.005,0,13,0.04,500,material(0x080e1a));
+
+for(let z=-240; z<250; z+=12) {
+  makeBox(0,0.04,z,0.13,0.035,4,cyan);
+}
+
+// Futuristic buildings
+for(const side of [-1,1]) {
+  for(let z=-220; z<100; z+=19) {
+    const x = side*(12+Math.random()*10);
+    const h = 10+Math.random()*33;
+    const w = 7+Math.random()*7;
+    const d = 10+Math.random()*6;
+
+    makeBox(
+      x,h/2,z,w,h,d,
+      buildingMaterials[Math.floor(Math.random()*4)]
+    );
+
+    makeBox(x,h+0.1,z,w*0.65,0.12,d*0.65,cyan);
+
+    for(let yy=2; yy<h-1; yy+=3) {
+      for(let xx=-w/2+1; xx<w/2; xx+=2.3) {
+        makeBox(
+          x+xx,yy,z+d/2+0.035,
+          0.7,1.15,0.06,
+          Math.random()>0.8 ? pink : cyan
+        );
+      }
+    }
+  }
+}
+
+// Distant skyline
+for(let i=0;i<70;i++) {
+  const x=(Math.random()-0.5)*240;
+  const z=-100-Math.random()*170;
+  const h=10+Math.random()*35;
+
+  makeBox(
+    x,h/2,z,
+    5+Math.random()*8,h,5+Math.random()*8,
+    buildingMaterials[i%4]
+  );
+}
+
+// Flying vehicles
+const vehicles=[];
+
+for(let i=0;i<9;i++) {
+  const group=new THREE.Group();
+
+  const body=new THREE.Mesh(
+    new THREE.BoxGeometry(2.5,0.55,1.2),
+    material(i%2 ? 0x172d47 : 0x32203e)
+  );
+  group.add(body);
+
+  const lights=new THREE.Mesh(
+    new THREE.BoxGeometry(2.3,0.08,1.25),
+    i%2 ? cyan : pink
+  );
+  lights.position.y=0.3;
+  group.add(lights);
+
+  group.position.set(
+    (Math.random()-0.5)*55,
+    8+Math.random()*20,
+    -Math.random()*180
+  );
+
+  scene.add(group);
+  vehicles.push(group);
+}
+
+// Subtle 90s CRT-style collectibles
+function makeRetro(x,z) {
+  makeBox(x,1.1,z,1.1,1.5,0.65,material(0x34374a));
+  makeBox(x,1.15,z+0.34,0.82,0.72,0.05,material(0x58d9b9,0.7));
+  makeBox(x,0.25,z+0.37,0.65,0.12,0.06,gold);
+}
+
+makeRetro(-7,-13);
+makeRetro(7,-36);
+
+// Research terminal
+const terminal=new THREE.Group();
+
+const terminalBody=new THREE.Mesh(
+  new THREE.BoxGeometry(1.6,2.3,1),
+  material(0x162a43)
+);
+terminal.add(terminalBody);
+
+const terminalScreen=new THREE.Mesh(
+  new THREE.BoxGeometry(1.3,1.2,0.08),
+  cyan
+);
+terminalScreen.position.set(0,0.35,0.54);
+terminal.add(terminalScreen);
+
+const ring=new THREE.Mesh(
+  new THREE.TorusGeometry(1.35,0.045,8,48),
+  cyan
+);
+ring.position.y=-0.5;
+ring.rotation.x=Math.PI/2;
+terminal.add(ring);
+
+terminal.position.set(0,1,-58);
+scene.add(terminal);
+
+// Player and controls
+const player=new THREE.Vector3(0,0,5);
+
+let yaw=0;
+let pitch=0;
+let running=false;
+let completed=false;
+
+camera.position.set(player.x,1.7,player.z);
+
+function updateCamera() {
+  camera.position.set(player.x,1.7,player.z);
+  camera.rotation.order='YXZ';
+  camera.rotation.y=yaw;
+  camera.rotation.x=pitch;
+}
+
+const keys={};
+const directions={
+  up:false,down:false,left:false,right:false
+};
+
+function bindButton(id,key) {
+  const el=document.getElementById(id);
+
+  el.addEventListener('pointerdown',e=>{
+    e.preventDefault();
+    directions[key]=true;
+  });
+
+  ['pointerup','pointercancel','pointerleave'].forEach(type=>{
+    el.addEventListener(type,e=>{
+      e.preventDefault();
+      directions[key]=false;
+    });
+  });
+}
+
+bindButton('up','up');
+bindButton('down','down');
+bindButton('left','left');
+bindButton('right','right');
+
+addEventListener('keydown',e=>{
+  keys[e.key.toLowerCase()]=true;
+});
+
+addEventListener('keyup',e=>{
+  keys[e.key.toLowerCase()]=false;
+});
+
+// Drag to look around
+let dragging=false;
+let lastX=0;
+let lastY=0;
+
+renderer.domElement.addEventListener('pointerdown',e=>{
+  if(e.clientY>innerHeight-155) return;
+  dragging=true;
+  lastX=e.clientX;
+  lastY=e.clientY;
+});
+
+addEventListener('pointerup',()=>dragging=false);
+
+addEventListener('pointermove',e=>{
+  if(!dragging) return;
+
+  yaw-=(e.clientX-lastX)*0.004;
+
+  pitch=Math.max(
+    -1.1,
+    Math.min(1.1,pitch-(e.clientY-lastY)*0.004)
+  );
+
+  lastX=e.clientX;
+  lastY=e.clientY;
+});
+
+document.getElementById('run').onclick=()=>{
+  running=!running;
+  document.getElementById('run').textContent=
+    'RUN: '+(running?'ON':'OFF');
+};
+
+// Mission interaction
+document.getElementById('interact').onclick=()=>{
+  const distance=player.distanceTo(
+    new THREE.Vector3(0,0,-58)
+  );
+
+  if(distance<5) {
+    completed=true;
+
+    document.getElementById('mission').innerHTML=
+      'MISSION COMPLETE<br>Research terminal activated!';
+
+    document.getElementById('status').textContent=
+      'SECTOR 07 // TERMINAL ONLINE';
+
+    document.getElementById('toast').textContent=
+      'SYSTEM RESTORED // WELL DONE';
+  } else {
+    document.getElementById('toast').textContent=
+      'MOVE CLOSER TO THE TERMINAL';
+  }
+};
+
+const clock=new THREE.Clock();
+
+function animate() {
+  requestAnimationFrame(animate);
+
+  const dt=Math.min(clock.getDelta(),0.04);
+
+  const forward=
+    (directions.up||keys.w||keys.arrowup?1:0)-
+    (directions.down||keys.s||keys.arrowdown?1:0);
+
+  const side=
+    (directions.right||keys.d||keys.arrowright?1:0)-
+    (directions.left||keys.a||keys.arrowleft?1:0);
+
+  const speed=(running?12:6)*dt;
+
+  const fx=-Math.sin(yaw);
+  const fz=-Math.cos(yaw);
+
+  player.x+=(fx*forward+Math.cos(yaw)*side)*speed;
+  player.z+=(fz*forward+Math.sin(yaw)*side)*speed;
+
+  player.x=Math.max(-10,Math.min(10,player.x));
+  player.z=Math.max(-245,Math.min(15,player.z));
+
+  updateCamera();
+
+  vehicles.forEach((vehicle,i)=>{
+    vehicle.position.x+=dt*(i%2?4:-3);
+
+    if(vehicle.position.x>50) vehicle.position.x=-50;
+    if(vehicle.position.x<-50) vehicle.position.x=50;
+
+    vehicle.position.z+=Math.sin(clock.elapsedTime+i)*dt*0.7;
+  });
+
+  terminal.rotation.y=Math.sin(clock.elapsedTime*0.5)*0.12;
+  ring.rotation.z=clock.elapsedTime*0.7;
+
+  document.getElementById('dist').textContent=
+    Math.round(Math.abs(player.z+58));
+
+  renderer.render(scene,camera);
+}
+
+addEventListener('resize',()=>{
+  camera.aspect=innerWidth/innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth,innerHeight);
+});
+
+animate();
+</script>
+</body>
+  </html>
